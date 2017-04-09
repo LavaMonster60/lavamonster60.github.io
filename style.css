@@ -1,5 +1,5 @@
 #jumbotron {
-	width:400px;
+	width:500px;
 	height:100px;
 	margin:auto;
 }
@@ -7,7 +7,11 @@
 h1 {
 	vertical-align: middle;
 	text-align: center;
-	font-size: 80px;
+	font-size: 60px;
 	font-family: 'Pangolin', cursive;
 	color: red;
+}
+#board {
+	width:400px;
+	margin:auto;
 }
