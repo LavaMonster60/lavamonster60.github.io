@@ -8,9 +8,9 @@
     	<link rel="stylesheet" href="css/chessboard-0.3.0.css">
     	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
     </head>
-    <body>
+    <body style="background: rgb(0, 0, 255);">
 	    <div id="jumbotron">
-	    	<h1> Welcome to Your Death by Chess </h1>
+	    	<h1> Welcome to Chess </h1>
 	    </div>
 	    <div id="board"></div>
 	    <script src="js/chessboard-0.3.0.js"></script>
@@ -30,19 +30,7 @@
 			  }
 			};
 
-			var makeRandomMove = function() {
-			  var possibleMoves = game.moves();
-
-			  // game over
-			  if (possibleMoves.length === 0) {
-			  	alert("The Game is Over");
-			  	// TODO: reset the board here
-			  	return;
-			  }
-			  var randomIndex = Math.floor(Math.random() * possibleMoves.length);
-			  game.move(possibleMoves[randomIndex]);
-			  board.position(game.fen());
-			};
+			
 
 			var onDrop = function(source, target) {
 			  // see if the move is legal
@@ -56,7 +44,7 @@
 			  if (move === null) return 'snapback';
 
 			  // make random legal move for black
-			  window.setTimeout(makeRandomMove, 250);
+			  window.setTimeout(makeAggresiveMove, 250);
 			};
 
 			// update the board position after the piece snap
@@ -64,7 +52,55 @@
 			var onSnapEnd = function() {
 			  board.position(game.fen());
 			};
+			// var makeRandomMove = function() {
+			//   var possibleMoves = game.moves();
 
+			//   // game over
+			//   if (possibleMoves.length === 0) {
+			//   	alert("The Game is Over");
+			//   	// TODO: reset the board here
+			//   	return;
+			//   }
+			//   var randomIndex = Math.floor(Math.random() * possibleMoves.length);
+			//   game.move(possibleMoves[randomIndex]);
+			//   board.position(game.fen());
+			// };
+			var makeAggresiveMove = function() {
+			  var possibleMoves = game.moves();
+
+			  // game over
+			  if (possibleMoves.length === 0) {
+			  	alert("The Game is Over");
+			  	// TODO: reset the board here
+			  	return;
+			  }
+			  var takeIndex;
+			  for (takeIndex = 0; takeIndex<possibleMoves.length;takeIndex=takeIndex+1)
+			  { 
+			  	
+			  	// thisMove contains for example 'a5'
+				var thisMove=possibleMoves[takeIndex];
+				var square=game.get(thisMove);
+
+				// if theres something at that square we could move to
+				console.log(square);
+				if(square !== null){
+					// if opponent is at that square
+					//console.log(square.color);
+					if (square.color==="w"){
+						break;
+					} 
+				} 
+			  }
+
+			  if (takeIndex===possibleMoves.length){
+			  	takeIndex=0;
+			  }
+			  console.log(possibleMoves)
+			  console.log(takeIndex,possibleMoves[takeIndex]);
+			  game.move(possibleMoves[takeIndex]);
+			  board.position(game.fen());
+			};
 			var cfg = {
 			  draggable: true,
 			  position: 'start',
