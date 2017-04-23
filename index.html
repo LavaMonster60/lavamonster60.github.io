@@ -66,7 +66,7 @@
 			//   board.position(game.fen());
 			// };
 			var makeAggresiveMove = function() {
-			  var possibleMoves = game.moves();
+			  var possibleMoves = game.moves({ verbose: true });
 
 			  // game over
 			  if (possibleMoves.length === 0) {
@@ -74,31 +74,24 @@
 			  	// TODO: reset the board here
 			  	return;
 			  }
-			  var takeIndex;
-			  for (takeIndex = 0; takeIndex<possibleMoves.length;takeIndex=takeIndex+1)
-			  { 
+
+			  for (var i = 0; i<possibleMoves.length; i++) { 
+
 			  	
-			  	// thisMove contains for example 'a5'
-				var thisMove=possibleMoves[takeIndex];
-				var square=game.get(thisMove);
-
-				// if theres something at that square we could move to
-				console.log(square);
-				if(square !== null){
-					// if opponent is at that square
-					//console.log(square.color);
-					if (square.color==="w"){
-						break;
-					} 
-				} 
+			  	// thisMove contains for example { color: 'w', from: 'a2', to: 'a3', flags: 'n', piece: 'p', san 'a3' }
+				var thisMove=possibleMoves[i];
+				console.log(thisMove);
+				 
+				// thisMove is a capturing move
+				if(thisMove.flags.indexOf("c")> -1)
+				{
+					game.move(thisMove.san);
+				}
 			  }
 
-			  if (takeIndex===possibleMoves.length){
-			  	takeIndex=0;
-			  }
-			  console.log(possibleMoves)
-			  console.log(takeIndex,possibleMoves[takeIndex]);
-			  game.move(possibleMoves[takeIndex]);
+			  // pick a random index
+			  	var randomIndex = Math.floor(Math.random() * possibleMoves.length);
+			  game.move(possibleMoves[randomIndex]);
 			  board.position(game.fen());
 			};
 			var cfg = {
