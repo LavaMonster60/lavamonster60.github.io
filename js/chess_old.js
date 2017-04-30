@@ -1,5 +1,11 @@
+// downloaded from https://github.com/jhlywa/chess.js/blob/master/chess.js
+// on 27 July 2013
+// commit: eed8f8a3b96d99fcd570b7ced105e8415409a800
+
+'use strict';
+
 /*
- * Copyright (c) 2017, Jeff Hlywa (jhlywa@gmail.com)
+ * Copyright (c) 2011, Jeff Hlywa (jhlywa@gmail.com)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,15 +31,8 @@
  *
  *----------------------------------------------------------------------------*/
 
-/* minified license below  */
-
-/* @license
- * Copyright (c) 2017, Jeff Hlywa (jhlywa@gmail.com)
- * Released under the BSD license
- * https://github.com/jhlywa/chess.js/blob/master/LICENSE
- */
-
-var Chess = function(fen) {
+window['Chess'] = window['Chess'] || function(fen) {
+//var Chess = function(fen) {
 
   /* jshint indent: false */
 
@@ -193,6 +192,7 @@ var Chess = function(fen) {
     var tokens = fen.split(/\s+/);
     var position = tokens[0];
     var square = 0;
+    var valid = SYMBOLS + '12345678/';
 
     if (!validate_fen(fen).valid) {
       return false;
@@ -238,11 +238,6 @@ var Chess = function(fen) {
     return true;
   }
 
-  /* TODO: this function is pretty much crap - it validates structure but
-   * completely ignores content (e.g. doesn't verify that each side has a king)
-   * ... we should rewrite this, and ditch the silly error_number field while
-   * we're at it
-   */
   function validate_fen(fen) {
     var errors = {
        0: 'No errors.',
@@ -256,7 +251,6 @@ var Chess = function(fen) {
        8: '1st field (piece positions) is invalid [consecutive numbers].',
        9: '1st field (piece positions) is invalid [invalid piece].',
       10: '1st field (piece positions) is invalid [row too large].',
-      11: 'Illegal en-passant square',
     };
 
     /* 1st criterion: 6 space-seperated fields? */
@@ -320,11 +314,6 @@ var Chess = function(fen) {
       if (sum_fields !== 8) {
         return {valid: false, error_number: 10, error: errors[10]};
       }
-    }
-
-    if ((tokens[3][1] == '3' && tokens[1] == 'w') ||
-        (tokens[3][1] == '6' && tokens[1] == 'b')) {
-          return {valid: false, error_number: 11, error: errors[11]};
     }
 
     /* everything's okay! */
@@ -397,8 +386,8 @@ var Chess = function(fen) {
     if (history.length > 0) return;
 
     if (fen !== DEFAULT_POSITION) {
-      header['SetUp'] = '1';
-      header['FEN'] = fen;
+      header['SetUp'] = fen;
+      header['FEN'] = '1';
     } else {
       delete header['SetUp'];
       delete header['FEN'];
@@ -427,13 +416,6 @@ var Chess = function(fen) {
     }
 
     var sq = SQUARES[square];
-
-    /* don't let the user place more than one king */
-    if (piece.type == KING &&
-        !(kings[piece.color] == EMPTY || kings[piece.color] == sq)) {
-      return false;
-    }
-
     board[sq] = {type: piece.type, color: piece.color};
     if (piece.type === KING) {
       kings[piece.color] = sq;
@@ -632,16 +614,8 @@ var Chess = function(fen) {
 
   /* convert a move from 0x88 coordinates to Standard Algebraic Notation
    * (SAN)
-   *
-   * @param {boolean} sloppy Use the sloppy SAN generator to work around over
-   * disambiguation bugs in Fritz and Chessbase.  See below:
-   *
-   * r1bqkbnr/ppp2ppp/2n5/1B1pP3/4P3/8/PPPP2PP/RNBQK1NR b KQkq - 2 4
-   * 4. ... Nge7 is overly disambiguated because the knight on c6 is pinned
-   * 4. ... Ne7 is technically the valid SAN
    */
-  function move_to_san(move, sloppy) {
-
+  function move_to_san(move) {
     var output = '';
 
     if (move.flags & BITS.KSIDE_CASTLE) {
@@ -649,7 +623,7 @@ var Chess = function(fen) {
     } else if (move.flags & BITS.QSIDE_CASTLE) {
       output = 'O-O-O';
     } else {
-      var disambiguator = get_disambiguator(move, sloppy);
+      var disambiguator = get_disambiguator(move);
 
       if (move.piece !== PAWN) {
         output += move.piece.toUpperCase() + disambiguator;
@@ -680,11 +654,6 @@ var Chess = function(fen) {
     undo_move();
 
     return output;
-  }
-
-  // parses all of the decorators out of a SAN string
-  function stripped_san(move) {
-    return move.replace(/=/,'').replace(/[+#]?[?!]*$/,'');
   }
 
   function attacked(color, square) {
@@ -974,8 +943,8 @@ var Chess = function(fen) {
   }
 
   /* this function is used to uniquely identify ambiguous moves */
-  function get_disambiguator(move, sloppy) {
-    var moves = generate_moves({legal: !sloppy});
+  function get_disambiguator(move) {
+    var moves = generate_moves();
 
     var from = move.from;
     var to = move.to;
@@ -1058,45 +1027,6 @@ var Chess = function(fen) {
     return s;
   }
 
-  // convert a move from Standard Algebraic Notation (SAN) to 0x88 coordinates
-  function move_from_san(move, sloppy) {
-    // strip off any move decorations: e.g Nf3+?!
-    var clean_move = stripped_san(move);
-
-    // if we're using the sloppy parser run a regex to grab piece, to, and from
-    // this should parse invalid SAN like: Pe2-e4, Rc1c4, Qf3xf7
-    if (sloppy) {
-      var matches = clean_move.match(/([pnbrqkPNBRQK])?([a-h][1-8])x?-?([a-h][1-8])([qrbnQRBN])?/);
-      if (matches) {
-        var piece = matches[1];
-        var from = matches[2];
-        var to = matches[3];
-        var promotion = matches[4];
-      }
-    }
-
-    var moves = generate_moves();
-    for (var i = 0, len = moves.length; i < len; i++) {
-      // try the strict parser first, then the sloppy parser if requested
-      // by the user
-      if ((clean_move === stripped_san(move_to_san(moves[i]))) ||
-          (sloppy && clean_move === stripped_san(move_to_san(moves[i], true)))) {
-        return moves[i];
-      } else {
-        if (matches &&
-            (!piece || piece.toLowerCase() == moves[i].piece) &&
-            SQUARES[from] == moves[i].from &&
-            SQUARES[to] == moves[i].to &&
-            (!promotion || promotion.toLowerCase() == moves[i].promotion)) {
-          return moves[i];
-        }
-      }
-    }
-
-    return null;
-  }
-
-
   /*****************************************************************************
    * UTILITY FUNCTIONS
    ****************************************************************************/
@@ -1124,7 +1054,7 @@ var Chess = function(fen) {
   /* pretty = external move object */
   function make_pretty(ugly_move) {
     var move = clone(ugly_move);
-    move.san = move_to_san(move, false);
+    move.san = move_to_san(move);
     move.to = algebraic(move.to);
     move.from = algebraic(move.from);
 
@@ -1240,7 +1170,7 @@ var Chess = function(fen) {
             options.verbose) {
           moves.push(make_pretty(ugly_moves[i]));
         } else {
-          moves.push(move_to_san(ugly_moves[i], false));
+          moves.push(move_to_san(ugly_moves[i]));
         }
       }
 
@@ -1290,26 +1220,6 @@ var Chess = function(fen) {
       return generate_fen();
     },
 
-    board: function() {
-      var output = [],
-          row    = [];
-
-      for (var i = SQUARES.a8; i <= SQUARES.h1; i++) {
-        if (board[i] == null) {
-          row.push(null)
-        } else {
-          row.push({type: board[i].type, color: board[i].color})
-        }
-        if ((i + 1) & 0x88) {
-          output.push(row);
-          row = []
-          i += 8;
-        }
-      }
-
-      return output;
-    },
-
     pgn: function(options) {
       /* using the specification from http://www.chessclub.com/help/PGN-spec
        * example for html usage: .pgn({ max_width: 72, newline_char: "<br />" })
@@ -1344,23 +1254,26 @@ var Chess = function(fen) {
 
       var moves = [];
       var move_string = '';
+      var pgn_move_number = 1;
 
       /* build the list of moves.  a move_string looks like: "3. e3 e6" */
       while (reversed_history.length > 0) {
         var move = reversed_history.pop();
 
         /* if the position started with black to move, start PGN with 1. ... */
-        if (!history.length && move.color === 'b') {
-          move_string = move_number + '. ...';
+        if (pgn_move_number === 1 && move.color === 'b') {
+          move_string = '1. ...';
+          pgn_move_number++;
         } else if (move.color === 'w') {
           /* store the previous generated move_string if we have one */
           if (move_string.length) {
             moves.push(move_string);
           }
-          move_string = move_number + '.';
+          move_string = pgn_move_number + '.';
+          pgn_move_number++;
         }
 
-        move_string = move_string + ' ' + move_to_san(move, false);
+        move_string = move_string + ' ' + move_to_san(move);
         make_move(move);
       }
 
@@ -1406,20 +1319,114 @@ var Chess = function(fen) {
     },
 
     load_pgn: function(pgn, options) {
-      // allow the user to specify the sloppy move parser to work around over
-      // disambiguation bugs in Fritz and Chessbase
-      var sloppy = (typeof options !== 'undefined' && 'sloppy' in options) ?
-                    options.sloppy : false;
-
       function mask(str) {
-        return str.replace(/\\/g, '\\');
+        return str.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+      }
+
+      /* convert a move from Standard Algebraic Notation (SAN) to 0x88
+       * coordinates
+      */
+      function move_from_san(move) {
+        var to, from, flags = BITS.NORMAL, promotion;
+        var parse = move.match(/^([NBKRQ])?([abcdefgh12345678][12345678]?)?(x)?([abcdefgh][12345678])(=?[NBRQ])?/);
+        if (move.slice(0, 5) === 'O-O-O') {
+          from = kings[turn];
+          to = from - 2;
+          flags = BITS.QSIDE_CASTLE;
+        } else if (move.slice(0, 3) === 'O-O') {
+          from = kings[turn];
+          to = from + 2;
+          flags = BITS.KSIDE_CASTLE;
+        } else if (parse && parse[1]) {
+          // regular moves
+          var piece = parse[1].toLowerCase();
+          if (parse[3]) {
+            // capture
+            flags = BITS.CAPTURE;
+          }
+          to = SQUARES[parse[4]];
+          for (var j = 0, len = PIECE_OFFSETS[piece].length; j < len; j++) {
+            var offset = PIECE_OFFSETS[piece][j];
+            var square = to;
+
+            while (true) {
+              square += offset;
+              if (square & 0x88) break;
+
+              var b = board[square];
+              if (b) {
+                if (b.color === turn && b.type === piece && (!parse[2] || algebraic(square).indexOf(parse[2]) >= 0)) {
+                  from = square;
+                }
+                break;
+              }
+
+              /* break, if knight or king */
+              if (piece === 'n' || piece === 'k') break;
+            }
+          }
+        } else if (parse) {
+          // pawn move
+          if (parse[3]) {
+            // capture
+            to = SQUARES[parse[4]];
+            for (var j = 2; j < 4; j++) {
+              var square = to - PAWN_OFFSETS[turn][j];
+              if (square & 0x88) continue;
+
+              if (board[square] != null &&
+                  board[square].color === turn &&
+                  algebraic(square)[0] === parse[2]) {
+                from = square;
+              }
+            }
+            if (board[to]) {
+              flags = BITS.CAPTURE;
+            } else {
+              flags = BITS.EP_CAPTURE;
+            }
+          } else {
+            // normal move
+            to = SQUARES[move.slice(0,2)];
+            var c = to - PAWN_OFFSETS[turn][0],
+                b = board[c];
+            if (b && b.type === PAWN && b.color === turn) {
+              from = c;
+            } else {
+              c = to - PAWN_OFFSETS[turn][1];
+              b = board[c];
+              if (b && b.type === PAWN && b.color === turn) {
+                from = c;
+                flags = BITS.BIG_PAWN;
+              }
+            }
+          }
+          // promotion?
+          if (parse[5]) {
+            if(typeof parse[5][1] == 'undefined') {
+              promotion = parse[5][0].toLowerCase();
+            } else {
+              promotion = parse[5][1].toLowerCase();
+            }
+          }
+        }
+        if (from >=0 && to >=0 && flags) {
+          return build_move(board, from, to, flags, promotion);
+        } else if (move.length > 0) {
+          /* alert(move); // error in PGN, or in parsing. */
+        }
+      }
+
+      function get_move_obj(move) {
+        return move_from_san(trim(move));
       }
 
       function has_keys(object) {
+        var has_keys = false;
         for (var key in object) {
-          return true;
+          has_keys = true;
         }
-        return false;
+        return has_keys;
       }
 
       function parse_pgn_header(header, options) {
@@ -1427,7 +1434,7 @@ var Chess = function(fen) {
                             typeof options.newline_char === 'string') ?
                             options.newline_char : '\r?\n';
         var header_obj = {};
-        var headers = header.split(new RegExp(mask(newline_char)));
+        var headers = header.split(newline_char);
         var key = '';
         var value = '';
 
@@ -1445,9 +1452,9 @@ var Chess = function(fen) {
       var newline_char = (typeof options === 'object' &&
                           typeof options.newline_char === 'string') ?
                           options.newline_char : '\r?\n';
-      var regex = new RegExp('^(\\[(.|' + mask(newline_char) + ')*\\])' +
-                             '(' + mask(newline_char) + ')*' +
-                             '1.(' + mask(newline_char) + '|.)*$', 'g');
+        var regex = new RegExp('^(\\[(.|' + mask(newline_char) + ')*\\])' +
+                               '(' + mask(newline_char) + ')*' +
+                               '1.(' + mask(newline_char) + '|.)*$', 'g');
 
       /* get header part of the PGN file */
       var header_string = pgn.replace(regex, '$1');
@@ -1457,20 +1464,12 @@ var Chess = function(fen) {
         header_string = '';
       }
 
-      reset();
+     reset();
 
       /* parse PGN header */
       var headers = parse_pgn_header(header_string, options);
       for (var key in headers) {
         set_header([key, headers[key]]);
-      }
-
-      /* load the starting position indicated by [Setup '1'] and
-      * [FEN position] */
-      if (headers['SetUp'] === '1') {
-          if (!(('FEN' in headers) && load(headers['FEN']))) {
-            return false;
-          }
       }
 
       /* delete header to get the moves */
@@ -1479,20 +1478,9 @@ var Chess = function(fen) {
       /* delete comments */
       ms = ms.replace(/(\{[^}]+\})+?/g, '');
 
-      /* delete recursive annotation variations */
-      var rav_regex = /(\([^\(\)]+\))+?/g
-      while (rav_regex.test(ms)) {
-        ms = ms.replace(rav_regex, '');
-      }
-
       /* delete move numbers */
-      ms = ms.replace(/\d+\.(\.\.)?/g, '');
+      ms = ms.replace(/\d+\./g, '');
 
-      /* delete ... indicating black to move */
-      ms = ms.replace(/\.\.\./g, '');
-
-      /* delete numeric annotation glyphs */
-      ms = ms.replace(/\$\d+/g, '');
 
       /* trim and get array of moves */
       var moves = trim(ms).split(new RegExp(/\s+/));
@@ -1502,7 +1490,7 @@ var Chess = function(fen) {
       var move = '';
 
       for (var half_move = 0; half_move < moves.length - 1; half_move++) {
-        move = move_from_san(moves[half_move], sloppy);
+        move = get_move_obj(moves[half_move]);
 
         /* move not possible! (don't clear the board to examine to show the
          * latest valid position)
@@ -1522,7 +1510,7 @@ var Chess = function(fen) {
         }
       }
       else {
-        move = move_from_san(move, sloppy);
+        move = get_move_obj(move);
         if (move == null) {
           return false;
         } else {
@@ -1544,7 +1532,7 @@ var Chess = function(fen) {
       return turn;
     },
 
-    move: function(move, options) {
+    move: function(move) {
       /* The move function can be called with in the following parameters:
        *
        * .move('Nxb7')      <- where 'move' is a case-sensitive SAN string
@@ -1554,19 +1542,18 @@ var Chess = function(fen) {
        *         promotion: 'q',
        *      })
        */
-
-      // allow the user to specify the sloppy move parser to work around over
-      // disambiguation bugs in Fritz and Chessbase
-      var sloppy = (typeof options !== 'undefined' && 'sloppy' in options) ?
-                    options.sloppy : false;
-
       var move_obj = null;
+      var moves = generate_moves();
 
       if (typeof move === 'string') {
-        move_obj = move_from_san(move, sloppy);
+        /* convert the move string to a move object */
+        for (var i = 0, len = moves.length; i < len; i++) {
+          if (move === move_to_san(moves[i])) {
+            move_obj = moves[i];
+            break;
+          }
+        }
       } else if (typeof move === 'object') {
-        var moves = generate_moves();
-
         /* convert the pretty move object to an ugly move object */
         for (var i = 0, len = moves.length; i < len; i++) {
           if (move.from === algebraic(moves[i].from) &&
@@ -1657,5 +1644,3 @@ var Chess = function(fen) {
 /* export Chess object if using node or any other CommonJS compatible
  * environment */
 if (typeof exports !== 'undefined') exports.Chess = Chess;
-/* export Chess object for any RequireJS compatible environment */
-if (typeof define !== 'undefined') define( function () { return Chess;  });
