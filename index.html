@@ -31,8 +31,7 @@
 			  }
 
 			};
-			var getScore= function(player) { //white true black false
-				console.log(game.board());
+			var getScore= function() { //white true black false
 				
 				var currentBoard=game.board();
 				var whiteScore=0;
@@ -43,12 +42,38 @@
 
 					for(var j=0; j<row.length; j++){
 						var square = row[j];
+						var pieceValue=0;
+						
+						if (square!==null){
+							if (square.type==="p"){
+								pieceValue=1
+							}
+							else if (square.type==="r"){
+								pieceValue=5
+							}
+							else if (square.type==="b"){
+								pieceValue=3
+							}
+							else if (square.type==="n"){
+								pieceValue=3
+							}
+							else if (square.type==="q"){
+								pieceValue=9
+							}
 
-						console.log(square);
+							if (square.color==="w"){
+								whiteScore=whiteScore+pieceValue
+							}
+							else if (square.color==="b"){
+								blackScore=blackScore+pieceValue
+								
+							}
+						}
 					}
 				} 
-				return 0;
-			// whiteScore-blackScore
+
+				return blackScore-whiteScore;
+			
 			};
 
 			var onDrop = function(source, target) {
@@ -86,7 +111,7 @@
 			// };
 			var makeAggresiveMove = function() {
 			  var possibleMoves = game.moves({ verbose: true });
-			  	console.log("getScore returned ",getScore(true));
+			  console.log("getScore returned ",getScore());
 			  	
 			  // game over
 			  if (possibleMoves.length === 0) {
@@ -95,24 +120,27 @@
 			  	return;
 			  }
 
-			  for (var i = 0; i<possibleMoves.length; i++) { 
-
-			  	
+			  var biggestScore = -200;
+			  var bestMove;
+			  for (var i = 0; i < possibleMoves.length; i++) { 
 			  	// thisMove contains for example { color: 'w', from: 'a2', to: 'a3', flags: 'n', piece: 'p', san 'a3' }
 				var thisMove=possibleMoves[i];
-				//console.log(thisMove);
-				 
-				// thisMove is a capturing move
-				if(thisMove.flags.indexOf("c")> -1) 
-				{
-					game.move(thisMove.san);
-				}
+
+				game.move(thisMove.san);
+
+				var thisScore=getScore();
+				if(thisScore>biggestScore){
+					biggestScore=thisScore;
+					bestMove=thisMove;
+				}		
+				game.undo();	
+
+				
 			  }
 
-			  // pick a random index
-			  	var randomIndex = Math.floor(Math.random() * possibleMoves.length);
-			  game.move(possibleMoves[randomIndex]);
-			  board.position(game.fen());
+
+			  game.move(bestMove.san);
+			  	board.position(game.fen());
 			};
 			var cfg = {
 			  draggable: true,
